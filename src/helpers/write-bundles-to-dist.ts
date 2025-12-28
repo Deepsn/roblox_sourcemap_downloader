@@ -96,9 +96,10 @@ export async function writeBundlesToDist(params: {
                 const existing = await readFileIfExists(finalPath);
                 if (existing !== null && existing !== content) {
                     // create a unique path with bundle fileName appended
-                    const ext = path.extname(finalPath) || "";
-                    const base = finalPath.slice(0, -ext.length);
-                    finalPath = `${base}.${sanitizeFileName(fileName)}${ext}`;
+                    const parsed = path.parse(finalPath);
+                    const dir = parsed.dir || ".";
+                    const newName = `${parsed.name}.${sanitizeFileName(fileName)}${parsed.ext}`;
+                    finalPath = path.join(dir, newName);
                 }
             } catch (e) {
                 // ignore
@@ -127,7 +128,21 @@ function sanitizeRelativeSourcePath(raw: string) {
     normalized = normalized.replace(/^\/+/, "");
 
     const parts = normalized.split("/").filter((part) => part !== "" && part !== "." && part !== "..");
-    const cleaned = parts.map((part) => part.replace(/[^a-zA-Z0-9._-]/g, "_")).join(path.sep);
+
+    // Ensure no path segment starts with a dot (avoids creating hidden dot-files like `.js`) and no empty names
+    const cleanedParts = parts.map((part, idx) => {
+        // strip leading dots
+        let p = part.replace(/^[.]+/, "");
+        // replace invalid chars
+        p = p.replace(/[^a-zA-Z0-9._-]/g, "_");
+        // ensure not empty
+        if (p.length === 0) p = `_source_${idx}`;
+        // also prevent leading dot after sanitization
+        if (p[0] === ".") p = `_${p.slice(1)}`;
+        return p;
+    });
+
+    const cleaned = cleanedParts.join(path.sep);
     return cleaned || null;
 }
 
