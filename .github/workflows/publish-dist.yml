@@ -1,0 +1,79 @@
+# Weekly workflow: build this repo's `dist/` and push only its contents to another repository.
+# Required repository secrets:
+# - OTHER_REPO_TOKEN: a Personal Access Token (repo permissions) for the target repo
+# - TARGET_REPO: the target repository in the form "owner/target-repo" (can also be provided as an env variable)
+# Optional secret/var:
+# - TARGET_BRANCH: the branch to push to (defaults to `main` if not provided)
+
+name: Publish dist to another repo (weekly)
+
+on:
+    schedule:
+        - cron: "0 6 * * 2"
+    workflow_dispatch:
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Install Bun
+              uses: oven-sh/setup-bun@v2
+
+            - run: bun install
+
+            - name: Generate dist folder
+              run: bun run .
+
+            - name: Prepare and push dist to target repo
+              env:
+                  OTHER_REPO_TOKEN: ${{ secrets.OTHER_REPO_TOKEN }}
+                  TARGET_REPO: ${{ secrets.TARGET_REPO }}
+                  TARGET_BRANCH: ${{ secrets.TARGET_BRANCH }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "${TARGET_REPO:-}" ]; then
+                    echo "Error: TARGET_REPO is not set. Set it in the repo's secrets or environment variables." >&2
+                    exit 1
+                  fi
+                  if [ -z "${OTHER_REPO_TOKEN:-}" ]; then
+                    echo "Error: OTHER_REPO_TOKEN is not set. Put a PAT with repo access in the repo secrets." >&2
+                    exit 1
+                  fi
+
+                  # Ensure dist exists
+                  if [ ! -d "$GITHUB_WORKSPACE/dist" ]; then
+                    echo "Error: dist/ not found. Make sure generating step produced a dist folder." >&2
+                    ls -la
+                    exit 1
+                  fi
+
+                  TMPDIR=$(mktemp -d)
+                  echo "Cloning target repo ${TARGET_REPO} into ${TMPDIR}"
+                  git clone --depth 1 "https://x-access-token:${OTHER_REPO_TOKEN}@github.com/${TARGET_REPO}.git" "$TMPDIR"
+                  cd "$TMPDIR"
+
+                  BRANCH=${TARGET_BRANCH:-main}
+                  git checkout "$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
+
+                  # Remove tracked files (leave .git directory intact)
+                  git rm -rf . || true
+
+                  # Copy dist contents into the root of the target repo
+                  cp -a "$GITHUB_WORKSPACE/dist/." . || true
+
+                  # Only commit & push if something changed
+                  if [ -n "$(git status --porcelain)" ]; then
+                    git config user.name "github-actions[bot]"
+                    git config user.email "github-actions[bot]@users.noreply.github.com"
+                    git add -A
+                    git commit -m "chore(dist): update from $GITHUB_REPOSITORY@$GITHUB_SHA"
+                    git push "https://x-access-token:${OTHER_REPO_TOKEN}@github.com/${TARGET_REPO}.git" HEAD:"${BRANCH}"
+                    echo "Pushed updated dist to ${TARGET_REPO}:${BRANCH}"
+                  else
+                    echo "No changes in dist; nothing to commit"
+                  fi
