@@ -3,12 +3,7 @@ export async function getBundlesSourceMaps(bundles: Map<string, string>) {
 
     for (const [url, bundleText] of bundles) {
         const sourceMap = await getBundleSourceMap(bundleText);
-        if (!sourceMap) {
-            if (url.includes("sentry")) {
-                console.warn(`Skipping Sentry bundle without source map: ${url}`);
-            }
-            continue;
-        }
+        if (!sourceMap) continue;
         sourceMaps.set(url, sourceMap);
     }
 
