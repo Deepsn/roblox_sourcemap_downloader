@@ -5,11 +5,11 @@
 # Optional secret/var:
 # - TARGET_BRANCH: the branch to push to (defaults to `main` if not provided)
 
-name: Publish dist to another repo (weekly)
+name: Publish dist to another repo
 
 on:
     schedule:
-        - cron: "0 6 * * 2"
+        - cron: "0 7 * * *"
     workflow_dispatch:
 
 jobs:
