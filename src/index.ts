@@ -11,9 +11,9 @@ const bundleMapping = await getBundlesSourceMaps(bundleScripts);
 
 console.log(`Writing bundles and source maps to disk...`);
 await writeBundlesToDist({
-    bundles: bundleScripts,
-    sourceMaps: bundleMapping,
-    distDir: "dist",
+	bundles: bundleScripts,
+	sourceMaps: bundleMapping,
+	distDir: "dist",
 });
 
 console.log("Formatting dist/ with Biome...");

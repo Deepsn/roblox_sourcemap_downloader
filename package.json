@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run ."
+    "dev": "bun run .",
+    "format": "biome format .",
+    "check": "biome check . --fix"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -13,6 +15,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@biomejs/biome": "^2.3.10"
+    "@biomejs/biome": "^2.4.14"
   }
 }

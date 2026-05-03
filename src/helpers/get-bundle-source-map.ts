@@ -1,34 +1,33 @@
 export async function getBundlesSourceMaps(bundles: Map<string, string>) {
-    const sourceMaps = new Map<string, string>();
+	const sourceMaps = new Map<string, string>();
 
-    for (const [url, bundleText] of bundles) {
-        const sourceMap = await getBundleSourceMap(bundleText);
-        if (!sourceMap) continue;
-        sourceMaps.set(url, sourceMap);
-    }
+	for (const [url, bundleText] of bundles) {
+		const sourceMap = await getBundleSourceMap(bundleText);
+		if (!sourceMap) continue;
+		sourceMaps.set(url, sourceMap);
+	}
 
-    return sourceMaps;
+	return sourceMaps;
 }
 
 export async function getBundleSourceMap(bundleText: string) {
-    const sourceMapRegex = /\/\/# sourceMappingURL=(.+\.map)/;
-    const match = sourceMapRegex.exec(bundleText);
-    const sourceMapURL = match ? match[1] : undefined;
+	const sourceMapRegex = /\/\/# sourceMappingURL=(.+\.map)/;
+	const match = sourceMapRegex.exec(bundleText);
+	const sourceMapURL = match ? match[1] : undefined;
 
-    if (!sourceMapURL) return;
+	if (!sourceMapURL) return;
 
-    const response = await fetch(sourceMapURL)
-    const bundleMapping = await response.text().catch(() => undefined);
+	const response = await fetch(sourceMapURL);
+	const bundleMapping = await response.text().catch(() => undefined);
 
-    if (!bundleMapping) {
-        // Try with other url
-        const otherUrl = sourceMapURL.split("rbxcdn.com/")[1];
-        const alternativeResponse = await fetch("https://js.rbxcdn.com/" + otherUrl);
+	if (!bundleMapping) {
+		const otherUrl = sourceMapURL.split("rbxcdn.com/")[1];
+		const alternativeResponse = await fetch("https://js.rbxcdn.com/" + otherUrl);
 
-        if (!alternativeResponse.ok) return;
+		if (!alternativeResponse.ok) return;
 
-        return alternativeResponse.text();
-    }
+		return alternativeResponse.text();
+	}
 
-    return bundleMapping
+	return bundleMapping;
 }
