@@ -1,6 +1,32 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+const BUNDLE_DETECTOR_PREFIX_MAP: [prefix: string, folder: string][] = [
+	["DynamicLocalizationResourceScript_", "Locales"],
+];
+
+function getBundleDetectedPath(content: string): string | null {
+	const match = /window\.Roblox\.BundleDetector\.bundleDetected\(\s*["']([^"']+)["']/.exec(content);
+
+	if (content.includes("bundleDetected")) console.log("BundleDetector match:", match?.[1]);
+	if (!match) return null;
+
+	const bundleName = match[1];
+	if (!bundleName) return null;
+
+	for (const [prefix, folder] of BUNDLE_DETECTOR_PREFIX_MAP) {
+		if (bundleName.startsWith(prefix)) {
+			const rest = bundleName.slice(prefix.length);
+			const parts = rest.split(".");
+			return `${path.join(folder, ...parts)}.js`;
+		}
+	}
+
+	// Fallback: treat the whole name as a dot-separated path
+	const parts = bundleName.split(".");
+	return `${path.join(...parts)}.js`;
+}
+
 function sanitizeFileName(name: string) {
 	const sanitized = name.replace(/[^a-zA-Z0-9._-]/g, "_");
 	return sanitized.length > 200 ? sanitized.slice(0, 200) : sanitized;
@@ -45,7 +71,32 @@ export async function writeBundlesToDist(params: {
 		const outPath = path.join(distDir, fileName);
 
 		const sourceMapText = params.sourceMaps.get(bundleURL);
+
 		if (!sourceMapText) {
+			const bundleDetectedRel = getBundleDetectedPath(bundleText);
+
+			if (bundleDetectedRel) {
+				const targetPath = path.join(distDir, bundleDetectedRel);
+				await mkdir(path.dirname(targetPath), { recursive: true });
+
+				let finalPath = targetPath;
+
+				try {
+					const existing = await readFileIfExists(finalPath);
+					if (existing !== null && existing !== bundleText) {
+						const parsed = path.parse(finalPath);
+						const dir = parsed.dir || ".";
+						const newName = `${parsed.name}.${sanitizeFileName(fileName)}${parsed.ext}`;
+						finalPath = path.join(dir, newName);
+					}
+				} catch {
+					console.warn("Failed to check existing file:", finalPath);
+				}
+
+				await writeFile(finalPath, bundleText, "utf8");
+				continue;
+			}
+
 			const nmOut = path.join(notMappedDir, fileName);
 			await writeFile(nmOut, bundleText, "utf8");
 			continue;
