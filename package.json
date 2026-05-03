@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "bun run .",
-    "format": "biome format .",
-    "check": "biome check . --fix"
+    "lint": "biome lint .",
+    "format": "biome check . --fix"
   },
   "devDependencies": {
     "@types/bun": "latest"
