@@ -1,17 +1,18 @@
-# roblox_sourcemap_downloader 🚀
+# roblox_sourcemap_downloader
 
-A small utility that downloads Roblox JS bundles from the site, fetches any available source maps, and writes an on-disk representation of the mapped sources into a `dist/` folder so you can inspect original files the same way Chrome DevTools does.
+Downloads Roblox JS bundles from the site, fetches any available source maps, and writes the mapped sources to a `dist/` folder so you can inspect the original files the way Chrome DevTools does.
 
-## Features ✅
+## What it does
 
 - Downloads all `.js` bundles referenced from a Roblox page (by pathname).
-- Fetches and saves `.map` files when available, and updates the bundle's `//# sourceMappingURL=` to point to the saved `.map` file.
-- For bundles with source maps, extracts mapped sources and writes them into `dist/` using their original source paths (merged tree), so you get a folder structure similar to DevTools' webpack view.
-- Bundles without source maps are placed under `dist/not_mapped/`.
-- Collision-safe: when different bundles produce identical target paths with different contents, the writer keeps both files without overwriting (it appends a sanitized bundle identifier to the colliding filename).
+- Fetches and saves `.map` files when available, and rewrites the bundle's `//# sourceMappingURL=` to point at the saved `.map`.
+- For bundles with source maps, extracts the mapped sources and writes them to `dist/` under their original source paths (merged into one tree), similar to DevTools' webpack view.
+- Places bundles without source maps under `dist/not_mapped/`.
+- Handles path collisions: when two bundles map to the same target path with different contents, both files are kept. The colliding filename gets a sanitized bundle identifier appended instead of being overwritten.
 - Avoids creating hidden/dot-prefixed files and preserves directories.
+- Formats the generated `dist/` with Biome after writing.
 
-## Quickstart ⚡
+## Development
 
 Install dependencies:
 
@@ -19,26 +20,22 @@ Install dependencies:
 bun install
 ```
 
-Run downloader:
+Run:
 
 ```bash
-bun run .
-# or
 bun dev
 ```
 
-The project entrypoint is `src/index.ts` and currently uses Bun as the runtime.
+## Output layout
 
-## Output layout 📁
-
-After a successful run the `dist/` folder will look like:
+After a run, `dist/` looks like:
 
 - `dist/<original-source-path>/...` — mapped sources extracted from maps (paths preserved)
-- `dist/<bundle>.js` — the downloaded bundle with `//# sourceMappingURL=<bundle>.js.map` when a map exists
-- `dist/<bundle>.js.map` — the saved source map file
+- `dist/<bundle>.js` — the downloaded bundle, with `//# sourceMappingURL=<bundle>.js.map` when a map exists
+- `dist/<bundle>.js.map` — the saved source map
 - `dist/not_mapped/<bundle>.js` — bundles that had no source map
 
-Examples:
+Example:
 
 ```
 dist/components/robloxBadges/src/index.tsx
@@ -47,16 +44,10 @@ dist/0f91ae7....js.map
 dist/not_mapped/some-minified-bundle.js
 ```
 
-## Behavior notes 💡
+## Notes
 
-- Source maps do not reconstruct a single "de-minified" bundle — this tool extracts the map's `sourcesContent` (the original files) and writes them to disk so debuggers can show the original sources.
-- Some bundles intentionally omit maps (e.g. Sentry or private bundles); those are placed into `dist/not_mapped/` so you can separate them easily.
-- If the tool encounters an invalid map it will still save the `.map` and the bundle and continue.
+- Source maps don't reconstruct a single de-minified bundle. This tool extracts the map's `sourcesContent` (the original files) and writes them to disk so debuggers can show the sources.
+- Some bundles omit maps on purpose (e.g. Sentry or private bundles); those go to `dist/not_mapped/` so they're easy to separate.
+- If a map is invalid, the `.map` and bundle are still saved and the run continues.
 
-## Internals & customization 🔧
-
-- Core helpers live in `src/helpers/`:
-  - `get-bundle-scripts.ts` — finds and downloads bundles
-  - `get-bundle-source-map.ts` — locates and downloads source maps
-  - `write-bundles-to-dist.ts` — writes bundles/maps and extracts mapped sources
-- You can modify `src/index.ts` to change the target pathname (it currently uses the "charts" pathname).
+To change which pages are scraped, edit the `pathnames` array in `src/index.ts` (currently `games/606849621/Jailbreak`, `catalog`, and `upgrades/robux`).
