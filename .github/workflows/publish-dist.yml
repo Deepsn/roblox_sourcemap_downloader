@@ -61,19 +61,20 @@ jobs:
                   git checkout "$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
 
                   # Remove tracked files (leave .git directory intact)
-                  git rm -rf . || true
+                  git rm -rq --ignore-unmatch . || true
 
                   # Copy dist contents into the root of the target repo
-                  cp -a "$GITHUB_WORKSPACE/dist/." . || true
+                  cp -a "$GITHUB_WORKSPACE/dist/." .
 
-                  # Only commit & push if something changed
-                  if [ -n "$(git status --porcelain)" ]; then
-                    git config user.name "github-actions[bot]"
-                    git config user.email "github-actions[bot]@users.noreply.github.com"
-                    git add -A
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git add -A
+
+                  # Only commit & push if the staged tree differs from HEAD
+                  if git diff --cached --quiet; then
+                    echo "No changes in dist; nothing to commit"
+                  else
                     git commit -m "chore(dist): update from $GITHUB_REPOSITORY@$GITHUB_SHA"
                     git push "https://x-access-token:${OTHER_REPO_TOKEN}@github.com/${TARGET_REPO}.git" HEAD:"${BRANCH}"
                     echo "Pushed updated dist to ${TARGET_REPO}:${BRANCH}"
-                  else
-                    echo "No changes in dist; nothing to commit"
                   fi
